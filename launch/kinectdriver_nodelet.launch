@@ -23,6 +23,9 @@
   <arg name="publish_tf" default="true"/>
   <arg name="audio_device" default="hw:0,0" />
 
+  <arg name="use_republish" default="true"/>
+  <arg name="use_depth_registration" default="true"/>
+
   <group ns="$(arg camera)" >
     <node name="$(arg nodelet_manager_name)"
           pkg="nodelet" type="nodelet"
@@ -78,14 +81,14 @@
     <group ns="rgb" >
       <node name="republish_image"
             pkg="image_transport" type="republish"
-	          args="compressed raw" >
+            args="compressed raw"  if="$(arg use_republish)" >
         <remap from="in" to="image_raw" />
         <remap from="out" to="image_raw" />
       </node>
     </group>
   </group>
 
-  <include file="$(find openni2_launch)/launch/openni2.launch" >
+  <include file="$(find openni2_launch)/launch/openni2.launch" if="$(arg use_depth_registration)" >
     <arg name="sw_registered_processing" value="true" />
     <arg name="hw_registered_processing" value="false" />
     <arg name="camera" value="$(arg camera)" />
