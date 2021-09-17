@@ -1,5 +1,5 @@
 <launch>
-  <arg name="tf_prefix"         default="" />               <!-- Prefix added to tf frame IDs. It typically contains a trailing '_' unless empty. -->
+  <arg name="tf_prefix"         default="azure_" />               <!-- Prefix added to tf frame IDs. It typically contains a trailing '_' unless empty. -->
   <arg name="nodelet_manager_name"  default="azure_kinect_nodelet" />
 
   <arg name="camera" default="k4a" />
@@ -84,6 +84,13 @@
             args="compressed raw"  if="$(arg use_republish)" >
         <remap from="in" to="image_raw" />
         <remap from="out" to="image_raw" />
+      </node>
+      <node pkg="nodelet" type="nodelet" name="rectify_color"
+            args="load image_proc/rectify $(arg nodelet_manager_name) --no-bond"
+            output="screen"
+            respawn="true" >
+        <remap from="image_mono" to="/k4a/rgb/image_raw" />
+        <remap from="image_rect" to="image_rect_color" />
       </node>
     </group>
   </group>
