@@ -85,14 +85,24 @@
         <remap from="in" to="image_raw" />
         <remap from="out" to="image_raw" />
       </node>
-      <node pkg="nodelet" type="nodelet" name="rectify_color"
-            args="load image_proc/rectify $(arg nodelet_manager_name) --no-bond"
-            output="screen"
-            respawn="true" >
-        <remap from="image_mono" to="/k4a/rgb/image_raw" />
-        <remap from="image_rect" to="image_rect_color" />
-      </node>
     </group>
+    <nnode pkg="nodelet" type="nodelet" name="rectify_color"
+          args="load image_proc/rectify $(arg nodelet_manager_name) --no-bond"
+          output="screen"
+          respawn="true" >
+      <remap from="image_mono" to="rgb/image_raw" />
+      <remap from="image_rect" to="rgb/image_rect_color" />
+    </nnode>
+    <node pkg="nodelet" type="nodelet" name="crop_decimate"
+          args="load image_proc/crop_decimate $(arg nodelet_manager_name) --no-bond"
+          output="screen"
+          respawn="true" >
+      <remap from="camera" to="rgb" />
+      <remap from="camera_out" to="rgb_roi" />
+      <param name="width" value="640" />
+      <param name="height" value="480" />
+    </node>
+
   </group>
 
   <include file="$(find openni2_launch)/launch/openni2.launch" if="$(arg use_depth_registration)" >
