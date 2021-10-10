@@ -77,6 +77,21 @@
       (scale (/ 1.0 3) p p)
       p)
     ))
+(defun head-pixel (person)
+  (let ((p (float-vector 0 0 0))
+        (q0 (elt person 27))
+        (q1 (elt person 28))
+        (q2 (elt person 30))
+        )
+    (when (or q0 q1 q2)
+      (if q0 (v+ (send q0 :worldpos) p p))
+      (if q1 (v+ (send q1 :worldpos) p p))
+      (if q2 (v+ (send q2 :worldpos) p p))
+      (scale (/ 1.0 3) p p)
+      (setq p (send *cds-rgb-depth* :transform-vector p))
+      (send *rgb-cam* :screen-point p)
+      )
+    ))
 (defun left-hand-pixel (person)
   (let ((p (float-vector 0 0 0))
         (q0 (elt person 8))
@@ -87,7 +102,6 @@
       (if q1 (v+ (send q1 :worldpos) p p))
       (scale (/ 1.0 3) p p)
       (setq p (send *cds-rgb-depth* :transform-vector p))
-      ;;(scale 0.001 p p)
       (send *rgb-cam* :screen-point p)
       )
     ))
@@ -100,7 +114,6 @@
       (if q0 (v+ (send q0 :worldpos) p p))
       (if q1 (v+ (send q1 :worldpos) p p))
       (setq p (send *cds-rgb-depth* :transform-vector p))
-      ;;(scale 0.001 p p)
       (send *rgb-cam* :screen-point p)
       )
     ))
@@ -225,22 +238,57 @@
                                          :fx 612.4671630859375 :fy 612.417724609375
                                          :cx 639.3863525390625 :cy 364.351318359375))
 
+(defun set-roi-func (hp)
+  (let ((req (instance dynamic_reconfigure::ReconfigureRequest :init))
+        (xx (elt hp 0))
+        (yy (elt hp 1))
+        )
+    ;; 1280 720 -> 480 480
+    (cond
+     ((> xx (- 1280 240))
+      (setq xx 800)) ;; - 1280 480
+     ((< xx 240)
+      (setq xx 0))
+     (t
+      (setq xx (floor (- xx 240)))
+      ))
+    (cond
+     ((> yy (- 720 240))
+      (setq yy 240)) ;; - 720 480
+     ((< yy 240)
+      (setq yy 0))
+     (t
+      (setq yy (floor (- yy 240)))
+      ))
+    (pprint (list xx yy))
+    (send req :config :ints
+          (list (instance dynamic_reconfigure::IntParameter :init
+                          :name "x_offset" :value xx)
+                (instance dynamic_reconfigure::IntParameter :init
+                          :name "y_offset" :value yy)
+                (instance dynamic_reconfigure::IntParameter :init
+                          :name "width" :value 480)
+                (instance dynamic_reconfigure::IntParameter :init
+                          :name "height" :value 480)
+                ))
+    (ros::service-call "/k4a/crop_decimate/set_parameters" req)
+    ))
+
 ;;(load "models/arrow-object.l")
 ;;(make-irtviewer)
-(defun main ()
+(defun main (&key (set-roi))
   (ros::rate 5)
   (while (ros::ok)
-    ;;
-    (if *recog-person*  (setq *recog-person* nil))
-    (if *green-moment*  (setq *green-moment* nil))
-    (if *purple-moment* (setq *purple-moment* nil))
     ;;
     (when *recog-person*
       ;;
       (let ((mrk (instance image_view2::ImageMarker2 :init))
-            (rp (right-hand-pixel (elt *recog-person* 0)))
-            (lp (left-hand-pixel  (elt *recog-person* 0)))
-            )
+            (recog-p (elt *recog-person* 0)))
+        (when recog-p
+          (let ((rp (right-hand-pixel recog-p))
+                (lp (left-hand-pixel  recog-p))
+                (hp (head-pixel       recog-p)))
+        #|
         (when rp
           (send mrk :type image_view2::ImageMarker2::*POINTS*)
           (send mrk :points (list (instance geometry_msgs::Point :init :x (elt rp 0) :y (elt rp 1))))
@@ -253,15 +301,29 @@
           (send mrk :scale 16.0)
           (ros::publish "/image_marker" mrk)
           )
-        )
+        (when hp
+          (send mrk :type image_view2::ImageMarker2::*POINTS*)
+          (send mrk :points (list (instance geometry_msgs::Point :init :x (elt hp 0) :y (elt hp 1))))
+          (send mrk :scale 16.0)
+          (ros::publish "/image_marker" mrk)
+          )
+        |#
+            (if (and set-roi hp) (set-roi-func hp))
+            )
+          ))
       )
-    (when *pruple-moment*
-      )
-    (when *green-moment*
-      )
+    #|
+    (when *purple-moment* )
+
+    (when *green-moment* )
+    |#
+    ;;
+    (if *recog-person*  (setq *recog-person* nil))
+    (if *green-moment*  (setq *green-moment* nil))
+    (if *purple-moment* (setq *purple-moment* nil))
     ;;
     (ros::spin-once)
-    (x::window-main-one)
+    ;; (x::window-main-one)
     (ros::sleep)
     )
   )
